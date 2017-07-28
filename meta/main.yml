@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Torsten Schrade
+  description: Installs NTP on a host and synchronizes system time
+  company: ADWLM
+  license: MIT
+  min_ansible_version: 2.0
+dependencies: []

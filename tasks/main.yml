@@ -1,0 +1,45 @@
+---
+- name: Set correct timezone in /etc/timezone
+  template:
+    src: timezone.j2
+    dest: /etc/timezone
+    owner: root
+    group: root
+    mode: u+rw,g+r
+  register: timezone_template
+
+- name: update timezone
+  command: dpkg-reconfigure --f noninteractive tzdata
+  when: timezone_template.changed == true
+
+- name: Install ntp and ntpdate
+  apt: name={{ item }} state=installed
+  with_items:
+    - ntp
+    - ntpdate
+
+- name: Configure NTP
+  template:
+    src: ntp.conf.j2
+    dest: /etc/ntp.conf
+    owner: root
+    group: root
+    mode: u+rw,g+r
+  register: ntp_template
+
+- name: Ensure NTP is stopped for synchronizing the system time
+  service: name=ntp state=stopped
+  when: ntp_template.changed == true
+
+- name: Synchronize the system time (using shell commands, ntp packets might be blocked by ISP)
+  shell: "date -s \"$(/usr/bin/wget -qSO- --max-redirect=0 google.com 2>&1 | /bin/grep Date: | /usr/bin/cut -d' ' -f5-8)Z\""
+  when: ntp_template.changed == true
+
+- name: Also update hardware clock with newly synchronized system time
+  command: "hwclock --systohc"
+  when: ntp_template.changed == true
+  ignore_errors: true
+
+- name: Start NTP again
+  service: name=ntp state=started
+  when: ntp_template.changed == true
